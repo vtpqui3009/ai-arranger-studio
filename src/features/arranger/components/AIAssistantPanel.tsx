@@ -1,12 +1,11 @@
 import { Bot, Check, Clock3, Drum, ListMusic, LoaderCircle, Music, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { cn } from '../../../components/ui/cn'
-import type { ArrangerSuggestion, DrumEvent, NoteEvent, SuggestionHistoryItem } from '../types/music'
+import type { ArrangerSuggestion, DrumEvent, NoteEvent } from '../types/music'
 import { useArrangerStore } from '../store/arrangerStore'
-import { createId } from '../utils/musicTheory'
 import type { AISuggestionResult } from '../../../lib/ai/arrangerClient'
 import {
   requestBassSuggestion,
@@ -16,59 +15,55 @@ import {
 } from '../../../lib/ai/arrangerClient'
 import { describeSuggestion } from '../../../lib/ai/mockArranger'
 
-const MAX_HISTORY_ITEMS = 8
 type SuggestionAction = 'chords' | 'melody' | 'bass' | 'drums'
 
 export function AIAssistantPanel() {
-  const [history, setHistory] = useState<SuggestionHistoryItem[]>([])
-  const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<SuggestionAction | null>(null)
   const [statusMessage, setStatusMessage] = useState('Backend AI will be used when available.')
   const [errorMessage, setErrorMessage] = useState('')
+  // Holds the controller for any in-flight request so we can cancel it if a new one starts.
+  const abortControllerRef = useRef<AbortController | null>(null)
+
   const project = useArrangerStore((state) => state.project)
-  const replaceChords = useArrangerStore((state) => state.replaceChords)
-  const replaceMelody = useArrangerStore((state) => state.replaceMelody)
-  const selectedItem = history.find((item) => item.id === selectedSuggestionId) ?? history[0] ?? null
+  const suggestionHistory = useArrangerStore((state) => state.suggestionHistory)
+  const selectedSuggestionId = useArrangerStore((state) => state.selectedSuggestionId)
+  const addSuggestion = useArrangerStore((state) => state.addSuggestion)
+  const selectSuggestion = useArrangerStore((state) => state.selectSuggestion)
+  const applySuggestion = useArrangerStore((state) => state.applySuggestion)
 
-  const addSuggestion = (result: AISuggestionResult) => {
-    const item: SuggestionHistoryItem = {
-      id: createId('suggestion'),
-      suggestion: result.suggestion,
-      createdAt: new Date().toISOString(),
-      applied: false,
-    }
+  const selectedItem =
+    suggestionHistory.find((item) => item.id === selectedSuggestionId) ?? suggestionHistory[0] ?? null
 
-    setHistory((currentHistory) => [item, ...currentHistory].slice(0, MAX_HISTORY_ITEMS))
-    setSelectedSuggestionId(item.id)
+  const handleSuggestionResult = (result: AISuggestionResult) => {
+    addSuggestion(result)
     setStatusMessage(getSourceMessage(result))
     setErrorMessage(result.source === 'local-mock' || result.warning ? (result.warning ?? '') : '')
   }
 
-  const requestSuggestion = async (action: SuggestionAction, request: () => Promise<AISuggestionResult>) => {
+  const requestSuggestion = async (
+    action: SuggestionAction,
+    request: (signal: AbortSignal) => Promise<AISuggestionResult>,
+  ) => {
+    // Cancel any in-flight request before starting a new one.
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setPendingAction(action)
     setErrorMessage('')
 
     try {
-      addSuggestion(await request())
+      handleSuggestionResult(await request(controller.signal))
+    } catch (error) {
+      // AbortError means the request was intentionally cancelled — do not update state.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      setErrorMessage(error instanceof Error ? error.message : 'Request failed.')
     } finally {
       setPendingAction(null)
+      abortControllerRef.current = null
     }
-  }
-
-  const applySuggestion = (item: SuggestionHistoryItem) => {
-    if (item.suggestion.kind === 'chords') {
-      replaceChords(item.suggestion.chords)
-    }
-
-    if (item.suggestion.kind === 'melody') {
-      replaceMelody(item.suggestion.notes)
-    }
-
-    setHistory((currentHistory) =>
-      currentHistory.map((historyItem) =>
-        historyItem.id === item.id ? { ...historyItem, applied: true } : historyItem,
-      ),
-    )
   }
 
   return (
@@ -78,7 +73,7 @@ export function AIAssistantPanel() {
           <Button
             variant="secondary"
             icon={getActionIcon('chords', pendingAction, <ListMusic size={17} aria-hidden="true" />)}
-            onClick={() => requestSuggestion('chords', () => requestChordSuggestion(project))}
+            onClick={() => requestSuggestion('chords', (signal) => requestChordSuggestion(project, signal))}
             disabled={pendingAction !== null}
           >
             Suggest chord progression
@@ -86,7 +81,7 @@ export function AIAssistantPanel() {
           <Button
             variant="secondary"
             icon={getActionIcon('melody', pendingAction, <WandSparkles size={17} aria-hidden="true" />)}
-            onClick={() => requestSuggestion('melody', () => requestMelodySuggestion(project))}
+            onClick={() => requestSuggestion('melody', (signal) => requestMelodySuggestion(project, signal))}
             disabled={pendingAction !== null}
           >
             Suggest melody variation
@@ -94,7 +89,7 @@ export function AIAssistantPanel() {
           <Button
             variant="secondary"
             icon={getActionIcon('bass', pendingAction, <Music size={17} aria-hidden="true" />)}
-            onClick={() => requestSuggestion('bass', () => requestBassSuggestion(project))}
+            onClick={() => requestSuggestion('bass', (signal) => requestBassSuggestion(project, signal))}
             disabled={pendingAction !== null}
           >
             Suggest bass line
@@ -102,7 +97,7 @@ export function AIAssistantPanel() {
           <Button
             variant="secondary"
             icon={getActionIcon('drums', pendingAction, <Drum size={17} aria-hidden="true" />)}
-            onClick={() => requestSuggestion('drums', () => requestDrumSuggestion(project))}
+            onClick={() => requestSuggestion('drums', (signal) => requestDrumSuggestion(project, signal))}
             disabled={pendingAction !== null}
           >
             Suggest drum groove
@@ -129,15 +124,19 @@ export function AIAssistantPanel() {
 
               <SuggestionDetails suggestion={selectedItem.suggestion} />
 
-              {(selectedItem.suggestion.kind === 'chords' || selectedItem.suggestion.kind === 'melody') && (
-                <Button
-                  variant="primary"
-                  icon={<Check size={17} aria-hidden="true" />}
-                  onClick={() => applySuggestion(selectedItem)}
-                >
-                  {selectedItem.suggestion.kind === 'chords' ? 'Apply progression' : 'Apply melody'}
-                </Button>
-              )}
+              <Button
+                variant="primary"
+                icon={<Check size={17} aria-hidden="true" />}
+                onClick={() => applySuggestion(selectedItem.id)}
+              >
+                {selectedItem.suggestion.kind === 'chords'
+                  ? 'Apply progression'
+                  : selectedItem.suggestion.kind === 'melody'
+                    ? 'Apply melody'
+                    : selectedItem.suggestion.kind === 'bass'
+                      ? 'Apply bass line'
+                      : 'Apply drum groove'}
+              </Button>
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-studio-line bg-slate-950/50 p-4 text-sm leading-6 text-slate-400">
@@ -151,13 +150,13 @@ export function AIAssistantPanel() {
             <Clock3 size={16} className="text-studio-amber" aria-hidden="true" />
             Suggestion history
           </div>
-          {history.length > 0 ? (
+          {suggestionHistory.length > 0 ? (
             <div className="grid max-h-64 gap-2 overflow-auto pr-1">
-              {history.map((item) => (
+              {suggestionHistory.map((item) => (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setSelectedSuggestionId(item.id)}
+                  onClick={() => selectSuggestion(item.id)}
                   className={cn(
                     'rounded-lg border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-studio-teal/60',
                     selectedItem?.id === item.id

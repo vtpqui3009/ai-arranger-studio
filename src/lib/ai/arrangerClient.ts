@@ -10,6 +10,7 @@ import { captureError } from '../monitoring/errorMonitoring'
 
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8000'
 const BACKEND_URL = getBackendUrl()
+const REQUEST_TIMEOUT_MS = 15_000
 
 export type AISuggestionSource = 'backend-openai' | 'backend-mock' | 'local-mock'
 
@@ -27,36 +28,50 @@ type BackendSuggestionResponse = {
   warning?: string | null
 }
 
-export async function requestChordSuggestion(project: MusicProject): Promise<AISuggestionResult> {
+export async function requestChordSuggestion(
+  project: MusicProject,
+  signal?: AbortSignal,
+): Promise<AISuggestionResult> {
   return requestSuggestion('/api/ai/suggest-chords', project, () =>
-    suggestChordProgression(project.key, project.scale, project.style),
+    suggestChordProgression(project.key, project.scale, project.style), signal,
   )
 }
 
-export async function requestMelodySuggestion(project: MusicProject): Promise<AISuggestionResult> {
-  return requestSuggestion('/api/ai/suggest-melody', project, () => suggestMelodyVariation(project))
+export async function requestMelodySuggestion(
+  project: MusicProject,
+  signal?: AbortSignal,
+): Promise<AISuggestionResult> {
+  return requestSuggestion('/api/ai/suggest-melody', project, () => suggestMelodyVariation(project), signal)
 }
 
-export async function requestBassSuggestion(project: MusicProject): Promise<AISuggestionResult> {
-  return requestSuggestion('/api/ai/suggest-bass', project, () => suggestBassLine(project))
+export async function requestBassSuggestion(
+  project: MusicProject,
+  signal?: AbortSignal,
+): Promise<AISuggestionResult> {
+  return requestSuggestion('/api/ai/suggest-bass', project, () => suggestBassLine(project), signal)
 }
 
-export async function requestDrumSuggestion(project: MusicProject): Promise<AISuggestionResult> {
-  return requestSuggestion('/api/ai/suggest-drums', project, () => suggestDrumGroove(project.style))
+export async function requestDrumSuggestion(
+  project: MusicProject,
+  signal?: AbortSignal,
+): Promise<AISuggestionResult> {
+  return requestSuggestion('/api/ai/suggest-drums', project, () => suggestDrumGroove(project.style), signal)
 }
 
 async function requestSuggestion(
   endpoint: string,
   project: MusicProject,
   fallback: () => ArrangerSuggestion,
+  callerSignal?: AbortSignal,
 ): Promise<AISuggestionResult> {
+  const signal = mergeAbortSignals(callerSignal, REQUEST_TIMEOUT_MS)
+
   try {
     const response = await fetch(`${BACKEND_URL}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ project }),
+      signal,
     })
 
     if (!response.ok) {
@@ -74,10 +89,12 @@ async function requestSuggestion(
       warning: parsedResponse.warning ?? undefined,
     }
   } catch (error) {
-    captureError(error, {
-      area: 'ai-client',
-      endpoint,
-    })
+    // Do not fall back when the caller intentionally cancelled the request.
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error
+    }
+
+    captureError(error, { area: 'ai-client', endpoint })
 
     return {
       suggestion: fallback(),
@@ -85,6 +102,30 @@ async function requestSuggestion(
       warning: error instanceof Error ? error.message : 'Backend AI request failed.',
     }
   }
+}
+
+/**
+ * Returns a single AbortSignal that fires on the first of: timeout or caller abort.
+ * Uses AbortSignal.any() when available, otherwise falls back to a manual controller.
+ */
+function mergeAbortSignals(callerSignal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+
+  if (!callerSignal) {
+    return timeoutSignal
+  }
+
+  // AbortSignal.any is available in modern browsers and Node 20+.
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([callerSignal, timeoutSignal])
+  }
+
+  // Fallback: wire them together manually.
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  callerSignal.addEventListener('abort', abort, { once: true })
+  timeoutSignal.addEventListener('abort', abort, { once: true })
+  return controller.signal
 }
 
 function parseBackendSuggestionResponse(value: unknown): BackendSuggestionResponse | null {
