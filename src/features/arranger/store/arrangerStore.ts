@@ -124,13 +124,25 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
     set({
       project: touchProject(project),
       playback: { status: 'stopped', currentBeat: 0 },
+      suggestionHistory: [],
+      selectedSuggestionId: null,
     }),
 
   loadDemoProject: () =>
-    set({ project: createDemoProject(), playback: { status: 'stopped', currentBeat: 0 } }),
+    set({
+      project: createDemoProject(),
+      playback: { status: 'stopped', currentBeat: 0 },
+      suggestionHistory: [],
+      selectedSuggestionId: null,
+    }),
 
   createNewProject: () =>
-    set({ project: createEmptyProject(), playback: { status: 'stopped', currentBeat: 0 } }),
+    set({
+      project: createEmptyProject(),
+      playback: { status: 'stopped', currentBeat: 0 },
+      suggestionHistory: [],
+      selectedSuggestionId: null,
+    }),
 
   setPlaybackStatus: (status, currentBeat = 0) =>
     set({ playback: { status, currentBeat } }),

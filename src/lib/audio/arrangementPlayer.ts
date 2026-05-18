@@ -271,7 +271,7 @@ function createDrumKit(): DrumKit {
   snare.volume.value = -10
 
   const closedHat = new Tone.MetalSynth({
-    envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
     harmonicity: 5.1,
     modulationIndex: 32,
     resonance: 4000,
@@ -281,7 +281,7 @@ function createDrumKit(): DrumKit {
   closedHat.volume.value = -18
 
   const openHat = new Tone.MetalSynth({
-    envelope: { attack: 0.001, decay: 0.22, release: 0.08 },
+    envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.08 },
     harmonicity: 5.1,
     modulationIndex: 32,
     resonance: 4000,
@@ -299,9 +299,9 @@ function triggerDrumVoice(kit: DrumKit, voice: DrumVoice, time: number, velocity
   } else if (voice === 'snare') {
     kit.snare.triggerAttackRelease('8n', time, velocity)
   } else if (voice === 'closedHat') {
-    kit.closedHat.triggerAttack(time, velocity)
+    kit.closedHat.triggerAttackRelease('32n', time, velocity)
   } else if (voice === 'openHat') {
-    kit.openHat.triggerAttack(time, velocity)
+    kit.openHat.triggerAttackRelease('8n', time, velocity)
   }
 }
 

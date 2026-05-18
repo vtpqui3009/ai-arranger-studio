@@ -1,6 +1,6 @@
 import { Bot, Check, Clock3, Drum, ListMusic, LoaderCircle, Music, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { cn } from '../../../components/ui/cn'
@@ -30,6 +30,13 @@ export function AIAssistantPanel() {
   const addSuggestion = useArrangerStore((state) => state.addSuggestion)
   const selectSuggestion = useArrangerStore((state) => state.selectSuggestion)
   const applySuggestion = useArrangerStore((state) => state.applySuggestion)
+
+  // Abort any in-flight request when the project is replaced (load/new/demo).
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [project.id])
 
   const selectedItem =
     suggestionHistory.find((item) => item.id === selectedSuggestionId) ?? suggestionHistory[0] ?? null
