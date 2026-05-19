@@ -1,3 +1,8 @@
+import type { MixerState } from '../../mixer/types/mixer'
+import type { ClipTrackEvent, SoundClip } from '../../soundLibrary/types/soundClip'
+
+export const PROJECT_SCHEMA_VERSION = 2 as const
+
 export const ARRANGEMENT_STYLES = ['lofi', 'pop', 'edm', 'cinematic', 'rnb'] as const
 export const INSTRUMENT_TYPES = ['synth', 'piano', 'bass', 'pad'] as const
 export const NOTE_DURATION_OPTIONS = [0.5, 1, 2, 4] as const
@@ -47,6 +52,10 @@ export type MusicProject = {
   melody: NoteEvent[]
   bass: NoteEvent[]
   drums: DrumEvent[]
+  clips: ClipTrackEvent[]
+  userClips: SoundClip[]
+  mixer: MixerState
+  schemaVersion: number
   updatedAt: string
 }
 

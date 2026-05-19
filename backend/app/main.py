@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import generation
 from app.routers.ai import ai_service
 from app.routers.ai import router as ai_router
 from app.services.monitoring import initialize_error_monitoring
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         }
 
     app.include_router(ai_router)
+    app.include_router(generation.router)
     return app
 
 
