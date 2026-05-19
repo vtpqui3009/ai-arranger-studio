@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.generation import GenerationJob, GenerationStatus
 
@@ -10,7 +10,7 @@ _jobs: dict[str, GenerationJob] = {}
 
 def create_job(prompt: str, style: str, bpm: int) -> GenerationJob:
     job_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     job = GenerationJob(
         id=job_id,
         prompt=prompt,

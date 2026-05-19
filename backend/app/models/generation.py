@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class GenerationStatus(str, Enum):
+class GenerationStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -16,7 +15,7 @@ class GenerationStatus(str, Enum):
 class CreateGenerationJobRequest(BaseModel):
     prompt: str
     style: str
-    bpm: Optional[int] = 90
+    bpm: int | None = 90
 
 
 class GenerationJob(BaseModel):
@@ -24,10 +23,10 @@ class GenerationJob(BaseModel):
     prompt: str
     style: str
     status: GenerationStatus
-    result_clip_id: Optional[str] = None
-    error_message: Optional[str] = None
+    result_clip_id: str | None = None
+    error_message: str | None = None
     created_at: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 class CreateGenerationJobResponse(BaseModel):

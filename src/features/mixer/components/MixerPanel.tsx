@@ -46,11 +46,7 @@ export function MixerPanel() {
                   aria-pressed={settings.muted}
                   onClick={() => updateMixer(track, { muted: !settings.muted })}
                 >
-                  {settings.muted ? (
-                    <VolumeX size={14} aria-hidden="true" />
-                  ) : (
-                    <Volume2 size={14} aria-hidden="true" />
-                  )}
+                  {settings.muted ? <VolumeX size={14} aria-hidden="true" /> : <Volume2 size={14} aria-hidden="true" />}
                 </Button>
                 <Button
                   variant={settings.solo ? 'primary' : 'ghost'}

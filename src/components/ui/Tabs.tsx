@@ -33,9 +33,7 @@ export function Tabs<T extends string>({ items, value, onChange, ariaLabel, clas
             onClick={() => onChange(item.value)}
             className={cn(
               'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-studio-teal/60',
-              isActive
-                ? 'bg-studio-teal text-slate-950'
-                : 'text-slate-300 hover:bg-studio-raised hover:text-white',
+              isActive ? 'bg-studio-teal text-slate-950' : 'text-slate-300 hover:bg-studio-raised hover:text-white',
             )}
           >
             {item.icon}

@@ -1,6 +1,11 @@
 import * as Tone from 'tone'
 import type { DrumVoice, InstrumentType, MusicProject } from '../../features/arranger/types/music'
-import { BEATS_PER_BAR, PROJECT_BEATS, chordSymbolToVoicedMidiNotes, midiToPitch } from '../../features/arranger/utils/musicTheory'
+import {
+  BEATS_PER_BAR,
+  PROJECT_BEATS,
+  chordSymbolToVoicedMidiNotes,
+  midiToPitch,
+} from '../../features/arranger/utils/musicTheory'
 import { effectiveGain } from '../../features/mixer/types/mixer'
 import { getAudioBuffer } from './soundGenerator'
 
@@ -36,7 +41,12 @@ export async function exportArrangementToWav(project: MusicProject): Promise<voi
       filter: { Q: 1.4, type: 'lowpass', rolloff: -24 },
       envelope: { attack: 0.01, decay: 0.18, sustain: 0.58, release: 0.28 },
       filterEnvelope: {
-        attack: 0.01, decay: 0.12, sustain: 0.36, release: 0.2, baseFrequency: 90, octaves: 2.6,
+        attack: 0.01,
+        decay: 0.12,
+        sustain: 0.36,
+        release: 0.2,
+        baseFrequency: 90,
+        octaves: 2.6,
       },
     }).connect(bassGain)
     bassSynth.volume.value = -10
@@ -68,7 +78,10 @@ export async function exportArrangementToWav(project: MusicProject): Promise<voi
     }
 
     for (const event of project.drums) {
-      transport.schedule((time) => triggerDrumVoice(drumKit, event.voice, time, event.velocity), beatToTransportTime(event.startBeat))
+      transport.schedule(
+        (time) => triggerDrumVoice(drumKit, event.voice, time, event.velocity),
+        beatToTransportTime(event.startBeat),
+      )
     }
 
     // Mix any audio clips into the offline render by decoding their AudioBuffers
@@ -98,7 +111,8 @@ export async function exportArrangementToWav(project: MusicProject): Promise<voi
 function createMelodySynth(instrument: InstrumentType, output: Tone.Gain): Tone.Synth | Tone.FMSynth | Tone.MonoSynth {
   if (instrument === 'piano') {
     const s = new Tone.FMSynth({
-      harmonicity: 1.35, modulationIndex: 8,
+      harmonicity: 1.35,
+      modulationIndex: 8,
       envelope: { attack: 0.004, decay: 0.42, sustain: 0.06, release: 0.45 },
       modulationEnvelope: { attack: 0.005, decay: 0.18, sustain: 0.02, release: 0.25 },
     }).connect(output)
@@ -111,7 +125,12 @@ function createMelodySynth(instrument: InstrumentType, output: Tone.Gain): Tone.
       filter: { Q: 1.4, type: 'lowpass', rolloff: -24 },
       envelope: { attack: 0.01, decay: 0.18, sustain: 0.58, release: 0.28 },
       filterEnvelope: {
-        attack: 0.01, decay: 0.12, sustain: 0.36, release: 0.2, baseFrequency: 90, octaves: 2.6,
+        attack: 0.01,
+        decay: 0.12,
+        sustain: 0.36,
+        release: 0.2,
+        baseFrequency: 90,
+        octaves: 2.6,
       },
     }).connect(output)
     s.volume.value = -10
@@ -142,7 +161,8 @@ type DrumKit = {
 
 function createDrumKit(output: Tone.Gain): DrumKit {
   const kick = new Tone.MembraneSynth({
-    pitchDecay: 0.055, octaves: 6,
+    pitchDecay: 0.055,
+    octaves: 6,
     envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
   }).connect(output)
   kick.volume.value = -6
@@ -153,13 +173,19 @@ function createDrumKit(output: Tone.Gain): DrumKit {
   snare.volume.value = -10
   const closedHat = new Tone.MetalSynth({
     envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
-    harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
+    harmonicity: 5.1,
+    modulationIndex: 32,
+    resonance: 4000,
+    octaves: 1.5,
   }).connect(output)
   closedHat.frequency.value = 400
   closedHat.volume.value = -18
   const openHat = new Tone.MetalSynth({
     envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.08 },
-    harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
+    harmonicity: 5.1,
+    modulationIndex: 32,
+    resonance: 4000,
+    octaves: 1.5,
   }).connect(output)
   openHat.frequency.value = 400
   openHat.volume.value = -20
@@ -221,16 +247,24 @@ function encodeWav(buffer: AudioBuffer): ArrayBuffer {
   const view = new DataView(arrayBuffer)
 
   let p = 0
-  const writeStr = (s: string) => { for (const c of s) out[p++] = c.charCodeAt(0) }
-  const writeU32 = (v: number) => { view.setUint32(p, v, true); p += 4 }
-  const writeU16 = (v: number) => { view.setUint16(p, v, true); p += 2 }
+  const writeStr = (s: string) => {
+    for (const c of s) out[p++] = c.charCodeAt(0)
+  }
+  const writeU32 = (v: number) => {
+    view.setUint32(p, v, true)
+    p += 4
+  }
+  const writeU16 = (v: number) => {
+    view.setUint16(p, v, true)
+    p += 2
+  }
 
   writeStr('RIFF')
   writeU32(buffSize - 8)
   writeStr('WAVE')
   writeStr('fmt ')
-  writeU32(16)              // PCM chunk size
-  writeU16(1)               // PCM format
+  writeU32(16) // PCM chunk size
+  writeU16(1) // PCM format
   writeU16(numChannels)
   writeU32(sampleRate)
   writeU32(sampleRate * blockAlign)
@@ -255,7 +289,10 @@ function encodeWav(buffer: AudioBuffer): ArrayBuffer {
 
 function filenameFor(project: MusicProject): string {
   const slug =
-    project.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'arrangement'
+    project.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'arrangement'
   return `${slug}-demo.wav`
 }
 
