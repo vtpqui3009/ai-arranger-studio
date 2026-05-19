@@ -9,10 +9,10 @@ import { SoundLibraryCard } from './SoundLibraryCard'
 
 export function SoundLibraryPanel() {
   const project = useArrangerStore((state) => state.project)
+  const userClips = useArrangerStore((state) => state.project.userClips)
   const addClipToProject = useArrangerStore((state) => state.addClipToProject)
   const filter = useSoundLibraryStore((state) => state.filter)
   const setFilter = useSoundLibraryStore((state) => state.setFilter)
-  const generatedClips = useSoundLibraryStore((state) => state.generatedClips)
 
   useEffect(() => {
     prewarmCache(SOUND_CATALOG.map((clip) => clip.id))
@@ -20,11 +20,11 @@ export function SoundLibraryPanel() {
 
   const visibleClips = useMemo(() => {
     if (!filter) {
-      return [...SOUND_CATALOG, ...generatedClips]
+      return [...SOUND_CATALOG, ...userClips]
     }
 
-    return [...getClipsByCategory(filter), ...generatedClips.filter((clip) => clip.category === filter)]
-  }, [filter, generatedClips])
+    return [...getClipsByCategory(filter), ...userClips.filter((clip) => clip.category === filter)]
+  }, [filter, userClips])
   const addedClipIds = useMemo(() => new Set(project.clips.map((event) => event.clipId)), [project.clips])
 
   return (

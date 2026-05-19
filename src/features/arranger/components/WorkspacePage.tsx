@@ -1,15 +1,13 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, Library, X } from 'lucide-react'
+import { ArrowLeft, Download, Drum, Sliders } from 'lucide-react'
 import { useState } from 'react'
 import { ErrorBoundary } from '../../../components/ErrorBoundary'
 import { StudioSidebar } from '../../../components/layout/StudioSidebar'
 import { Button } from '../../../components/ui/Button'
+import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 import { playProject, stopPlayback } from '../../../lib/audio/arrangementPlayer'
+import { exportArrangementToWav } from '../../../lib/audio/wavExporter'
 import { MixerPanel } from '../../mixer/components/MixerPanel'
-import { SoundLibraryPanel } from '../../soundLibrary/components/SoundLibraryPanel'
-import { stopAllPreview } from '../../soundLibrary/store/soundLibraryStore'
-import { AISongGenerationPanel } from '../../aiSongGen/components/AISongGenerationPanel'
-import { AIAssistantPanel } from './AIAssistantPanel'
+import { AIStudioPanel } from '../../aiSongGen/components/AIStudioPanel'
 import { ArrangementTimeline } from './ArrangementTimeline'
 import { ChordTimeline } from './ChordTimeline'
 import { ClipTrack } from './ClipTrack'
@@ -21,13 +19,21 @@ type WorkspacePageProps = {
   onBackToLanding: () => void
 }
 
+type CenterTab = 'arrange' | 'mix'
+
+const CENTER_TABS: ReadonlyArray<TabItem<CenterTab>> = [
+  { value: 'arrange', label: 'Arrange', icon: <Drum size={14} aria-hidden="true" /> },
+  { value: 'mix', label: 'Mix', icon: <Sliders size={14} aria-hidden="true" /> },
+]
+
 export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
   const project = useArrangerStore((state) => state.project)
   const playbackStatus = useArrangerStore((state) => state.playback.status)
   const setPlaybackStatus = useArrangerStore((state) => state.setPlaybackStatus)
   const [statusMessage, setStatusMessage] = useState('Ready.')
   const [transportError, setTransportError] = useState('')
-  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [centerTab, setCenterTab] = useState<CenterTab>('arrange')
+  const [isExporting, setIsExporting] = useState(false)
 
   const handlePlay = async () => {
     setTransportError('')
@@ -56,6 +62,20 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
     setStatusMessage('Playback stopped.')
   }
 
+  const handleExportWav = async () => {
+    if (isExporting) return
+    setIsExporting(true)
+    setStatusMessage('Rendering arrangement to WAV (demo)...')
+    try {
+      await exportArrangementToWav(project)
+      setStatusMessage('WAV export complete.')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? `Export failed: ${error.message}` : 'Export failed.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-studio-ink text-slate-100">
       <div className="flex min-h-screen flex-col lg:flex-row">
@@ -73,15 +93,16 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
             </Button>
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm text-slate-400">
-                {project.melody.length} notes / {project.chords.length} chords / {project.instrument}
+                {project.melody.length} notes / {project.chords.length} chords / {project.clips.length} clips
               </p>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                icon={<Library size={16} aria-hidden="true" />}
-                onClick={() => setLibraryOpen(true)}
+                icon={<Download size={16} aria-hidden="true" />}
+                onClick={handleExportWav}
+                disabled={isExporting}
               >
-                Library
+                {isExporting ? 'Rendering...' : 'Export WAV (demo)'}
               </Button>
             </div>
           </header>
@@ -95,48 +116,26 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
                 onStartPlayback={handlePlay}
                 onStop={handleStop}
               />
-              <ArrangementTimeline />
-              <ChordTimeline />
-              <PianoRoll />
-              <ClipTrack />
-              <MixerPanel />
+              <Tabs items={CENTER_TABS} value={centerTab} onChange={setCenterTab} ariaLabel="Workspace mode" />
+              {centerTab === 'arrange' ? (
+                <>
+                  <ArrangementTimeline />
+                  <ChordTimeline />
+                  <PianoRoll />
+                </>
+              ) : (
+                <>
+                  <ClipTrack />
+                  <MixerPanel />
+                </>
+              )}
             </div>
             <ErrorBoundary>
-              <div className="grid gap-4">
-                <AIAssistantPanel />
-                <AISongGenerationPanel />
-              </div>
+              <AIStudioPanel />
             </ErrorBoundary>
           </div>
         </section>
       </div>
-      <AnimatePresence>
-        {libraryOpen && (
-          <motion.div
-            key="library-drawer"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 z-50 h-screen w-96 overflow-y-auto border-l border-studio-line bg-studio-panel shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b border-studio-line p-4">
-              <span className="text-sm font-semibold text-white">Sound Library</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  stopAllPreview()
-                  setLibraryOpen(false)
-                }}
-              >
-                <X size={18} aria-hidden="true" />
-              </Button>
-            </div>
-            <SoundLibraryPanel />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </main>
   )
 }

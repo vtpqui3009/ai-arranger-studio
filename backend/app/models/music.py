@@ -16,6 +16,7 @@ AISource = Literal["openai", "mock"]
 class TrackMixSettings(BaseModel):
     volume: float = Field(ge=0, le=100)
     muted: bool = False
+    solo: bool = False
 
 
 _DEFAULT_MIXER: dict[str, TrackMixSettings] = {
@@ -32,6 +33,23 @@ class ClipTrackEvent(BaseModel):
     clipId: str = Field(min_length=1)
     startBeat: float = Field(ge=0, le=64)
     gain: float = Field(ge=0, le=1)
+    muted: bool = False
+
+
+SoundClipSource = Literal["catalog-synth", "ai-generated"]
+SoundCategory = Literal["drums", "bass", "atmosphere", "melody", "fx"]
+
+
+class UserSoundClip(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=120)
+    category: SoundCategory
+    style: ArrangementStyle | None = None
+    tags: list[str] = Field(default_factory=list, max_length=16)
+    durationBeats: float = Field(gt=0, le=64)
+    referenceBpm: int = Field(ge=40, le=240)
+    source: SoundClipSource
+    aliasSourceId: str | None = None
 
 
 class NoteEvent(BaseModel):
@@ -72,7 +90,9 @@ class MusicProject(BaseModel):
     bass: list[NoteEvent] = Field(default_factory=list, max_length=256)
     drums: list[DrumEvent] = Field(default_factory=list, max_length=256)
     clips: list[ClipTrackEvent] = Field(default_factory=list, max_length=64)
+    userClips: list[UserSoundClip] = Field(default_factory=list, max_length=64)
     mixer: dict[TrackType, TrackMixSettings] = Field(default_factory=lambda: dict(_DEFAULT_MIXER))
+    schemaVersion: int = 2
     updatedAt: str
 
 

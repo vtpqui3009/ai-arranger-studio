@@ -1,4 +1,5 @@
 import type { ChordEvent, MusicProject, NoteDurationBeats, NoteEvent } from '../types/music'
+import { PROJECT_SCHEMA_VERSION } from '../types/music'
 import { DEFAULT_MIXER_STATE } from '../../mixer/types/mixer'
 import { BEATS_PER_BAR, DEFAULT_NOTE_DURATION_BEATS, PROJECT_BEATS, createId, midiToPitch } from './musicTheory'
 
@@ -63,7 +64,9 @@ export function createDemoProject(): MusicProject {
     bass: [],
     drums: [],
     clips: [],
+    userClips: [],
     mixer: DEFAULT_MIXER_STATE,
+    schemaVersion: PROJECT_SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -83,7 +86,9 @@ export function createEmptyProject(): MusicProject {
     bass: [],
     drums: [],
     clips: [],
+    userClips: [],
     mixer: DEFAULT_MIXER_STATE,
+    schemaVersion: PROJECT_SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
   }
 }

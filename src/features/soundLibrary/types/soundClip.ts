@@ -12,10 +12,13 @@ export type SoundClip = {
   durationBeats: number
   referenceBpm: number
   source: SoundClipSource
+  /** For ai-generated clips: the catalog clip ID whose buffer this aliases. Enables re-render after reload. */
+  aliasSourceId?: string
 }
 export type ClipTrackEvent = {
   id: string
   clipId: string
   startBeat: number
   gain: number
+  muted: boolean
 }

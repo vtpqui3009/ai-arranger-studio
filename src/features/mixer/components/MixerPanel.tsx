@@ -1,9 +1,9 @@
-import { Volume2, VolumeX } from 'lucide-react'
+import { Headphones, Volume2, VolumeX } from 'lucide-react'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { cn } from '../../../components/ui/cn'
 import { useArrangerStore } from '../../arranger/store/arrangerStore'
-import { TRACK_TYPES, type TrackType } from '../types/mixer'
+import { TRACK_TYPES, isTrackAudible, type TrackType } from '../types/mixer'
 
 const TRACK_DISPLAY_NAMES: Record<TrackType, string> = {
   chords: 'Chords',
@@ -23,9 +23,10 @@ export function MixerPanel() {
         {TRACK_TYPES.map((track) => {
           const settings = mixer[track]
           const displayName = TRACK_DISPLAY_NAMES[track]
+          const audible = isTrackAudible(mixer, track)
 
           return (
-            <div key={track} className={cn('flex flex-col items-center gap-2', settings.muted ? 'opacity-40' : '')}>
+            <div key={track} className={cn('flex flex-col items-center gap-2', audible ? '' : 'opacity-40')}>
               <span className="text-xs font-medium text-slate-400">{displayName}</span>
               <input
                 type="range"
@@ -37,14 +38,30 @@ export function MixerPanel() {
                 aria-label={`${displayName} volume`}
               />
               <span className="text-xs tabular-nums text-studio-amber">{settings.volume}</span>
-              <Button
-                variant={settings.muted ? 'danger' : 'ghost'}
-                size="icon"
-                aria-label={`${settings.muted ? 'Unmute' : 'Mute'} ${displayName}`}
-                onClick={() => updateMixer(track, { muted: !settings.muted })}
-              >
-                {settings.muted ? <VolumeX size={14} aria-hidden="true" /> : <Volume2 size={14} aria-hidden="true" />}
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant={settings.muted ? 'danger' : 'ghost'}
+                  size="icon"
+                  aria-label={`${settings.muted ? 'Unmute' : 'Mute'} ${displayName}`}
+                  aria-pressed={settings.muted}
+                  onClick={() => updateMixer(track, { muted: !settings.muted })}
+                >
+                  {settings.muted ? (
+                    <VolumeX size={14} aria-hidden="true" />
+                  ) : (
+                    <Volume2 size={14} aria-hidden="true" />
+                  )}
+                </Button>
+                <Button
+                  variant={settings.solo ? 'primary' : 'ghost'}
+                  size="icon"
+                  aria-label={`${settings.solo ? 'Unsolo' : 'Solo'} ${displayName}`}
+                  aria-pressed={settings.solo}
+                  onClick={() => updateMixer(track, { solo: !settings.solo })}
+                >
+                  <Headphones size={14} aria-hidden="true" />
+                </Button>
+              </div>
             </div>
           )
         })}

@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import type { ArrangementStyle } from '../../arranger/types/music'
+import { useArrangerStore } from '../../arranger/store/arrangerStore'
 import { createId } from '../../arranger/utils/musicTheory'
 import { getAudioBuffer, registerCacheAlias } from '../../../lib/audio/soundGenerator'
 import type { SoundClip } from '../../soundLibrary/types/soundClip'
-import { useSoundLibraryStore } from '../../soundLibrary/store/soundLibraryStore'
 import type { GenerationStatus, SongGenerationRequest } from '../types/songGeneration'
 
 const GENERATOR_IDS_BY_STYLE: Record<ArrangementStyle, string> = {
@@ -55,10 +55,11 @@ export const useSongGenStore = create<SongGenStore>((set) => ({
         durationBeats: 16,
         referenceBpm: 90,
         source: 'ai-generated',
+        aliasSourceId: sourceId,
       }
 
-      useSoundLibraryStore.getState().addGeneratedClip(newClip)
       registerCacheAlias(newClipId, sourceId)
+      useArrangerStore.getState().addUserClip(newClip)
 
       set((state) => ({
         requests: state.requests.map((request) =>

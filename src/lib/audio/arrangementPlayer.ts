@@ -1,6 +1,7 @@
 import * as Tone from 'tone'
 import type { DrumVoice, InstrumentType, MusicProject } from '../../features/arranger/types/music'
 import type { MixerState } from '../../features/mixer/types/mixer'
+import { effectiveGain } from '../../features/mixer/types/mixer'
 import {
   BEATS_PER_BAR,
   PROJECT_BEATS,
@@ -155,18 +156,10 @@ export class ArrangementPlayer {
   }
 
   private applyMixer(mixer: MixerState): void {
-    if (this.chordGain) {
-      this.chordGain.gain.value = mixer.chords.muted ? 0 : mixer.chords.volume / 100
-    }
-    if (this.melodyGain) {
-      this.melodyGain.gain.value = mixer.melody.muted ? 0 : mixer.melody.volume / 100
-    }
-    if (this.bassGain) {
-      this.bassGain.gain.value = mixer.bass.muted ? 0 : mixer.bass.volume / 100
-    }
-    if (this.drumGain) {
-      this.drumGain.gain.value = mixer.drums.muted ? 0 : mixer.drums.volume / 100
-    }
+    if (this.chordGain) this.chordGain.gain.value = effectiveGain(mixer, 'chords')
+    if (this.melodyGain) this.melodyGain.gain.value = effectiveGain(mixer, 'melody')
+    if (this.bassGain) this.bassGain.gain.value = effectiveGain(mixer, 'bass')
+    if (this.drumGain) this.drumGain.gain.value = effectiveGain(mixer, 'drums')
   }
 
   private scheduleChords(project: MusicProject): void {
@@ -234,10 +227,10 @@ export class ArrangementPlayer {
     if (project.clips.length === 0) return
 
     const ctx = Tone.getContext().rawContext as AudioContext
-    const clipMix = project.mixer.clips
-    const masterGain = clipMix.muted ? 0 : clipMix.volume / 100
+    const masterGain = effectiveGain(project.mixer, 'clips')
 
     for (const event of project.clips) {
+      if (event.muted) continue
       try {
         const buffer = await getAudioBuffer(event.clipId)
         const gainNode = ctx.createGain()

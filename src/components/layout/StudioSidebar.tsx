@@ -1,5 +1,5 @@
-import { Download, FilePlus2, FolderOpen, Save, Sparkles, Trash2, Upload } from 'lucide-react'
-import { type ChangeEvent, useRef } from 'react'
+import { Download, FilePlus2, FolderOpen, Library, Save, Settings, Sparkles, Trash2, Upload } from 'lucide-react'
+import { type ChangeEvent, type RefObject, useRef, useState } from 'react'
 import type { ArrangementStyle, InstrumentType, MusicProject, ScaleType } from '../../features/arranger/types/music'
 import { ARRANGEMENT_STYLES, INSTRUMENT_TYPES, SCALE_TYPES } from '../../features/arranger/types/music'
 import { useArrangerStore } from '../../features/arranger/store/arrangerStore'
@@ -10,9 +10,19 @@ import {
   parseProjectJson,
   saveProject,
 } from '../../lib/storage/projectStorage'
+import { SoundLibraryPanel } from '../../features/soundLibrary/components/SoundLibraryPanel'
+import { stopAllPreview } from '../../features/soundLibrary/store/soundLibraryStore'
 import { Button } from '../ui/Button'
 import { SelectField } from '../ui/SelectField'
+import { Tabs, type TabItem } from '../ui/Tabs'
 import { TextField } from '../ui/TextField'
+
+type SidebarTab = 'project' | 'library'
+
+const SIDEBAR_TABS: ReadonlyArray<TabItem<SidebarTab>> = [
+  { value: 'project', label: 'Project', icon: <Settings size={14} aria-hidden="true" /> },
+  { value: 'library', label: 'Library', icon: <Library size={14} aria-hidden="true" /> },
+]
 
 const keyOptions = KEYS.map((key) => ({ value: key, label: key }))
 const scaleOptions = SCALE_TYPES.map((scale) => ({ value: scale, label: scale }))
@@ -32,11 +42,19 @@ type StudioSidebarProps = {
 
 export function StudioSidebar({ statusMessage, setStatusMessage }: StudioSidebarProps) {
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [tab, setTab] = useState<SidebarTab>('project')
   const project = useArrangerStore((state) => state.project)
   const updateProjectMetadata = useArrangerStore((state) => state.updateProjectMetadata)
   const loadProject = useArrangerStore((state) => state.loadProject)
   const loadDemoProject = useArrangerStore((state) => state.loadDemoProject)
   const createNewProject = useArrangerStore((state) => state.createNewProject)
+
+  const handleTabChange = (next: SidebarTab) => {
+    if (next !== 'library') {
+      stopAllPreview()
+    }
+    setTab(next)
+  }
 
   const handleSaveProject = () => {
     try {
@@ -101,10 +119,66 @@ export function StudioSidebar({ statusMessage, setStatusMessage }: StudioSidebar
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-studio-line bg-studio-panel/95 p-4 lg:h-screen lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-studio-teal">Project</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-studio-teal">Studio</p>
         <h1 className="mt-2 text-2xl font-semibold text-white">AI Arranger Studio</h1>
       </div>
 
+      <div className="mt-4">
+        <Tabs items={SIDEBAR_TABS} value={tab} onChange={handleTabChange} ariaLabel="Sidebar section" />
+      </div>
+
+      {tab === 'library' ? (
+        <div className="mt-4 flex-1 overflow-y-auto">
+          <SoundLibraryPanel />
+        </div>
+      ) : (
+        <ProjectPanel
+          project={project}
+          updateProjectMetadata={updateProjectMetadata}
+          importInputRef={importInputRef}
+          handleSaveProject={handleSaveProject}
+          handleLoadProject={handleLoadProject}
+          handleLoadDemo={handleLoadDemo}
+          handleNewProject={handleNewProject}
+          handleClearSavedProject={handleClearSavedProject}
+          handleImportProject={handleImportProject}
+          setStatusMessage={setStatusMessage}
+          statusMessage={statusMessage}
+        />
+      )}
+    </aside>
+  )
+}
+
+type ProjectPanelProps = {
+  project: MusicProject
+  updateProjectMetadata: (updates: Partial<MusicProject>) => void
+  importInputRef: RefObject<HTMLInputElement | null>
+  handleSaveProject: () => void
+  handleLoadProject: () => void
+  handleLoadDemo: () => void
+  handleNewProject: () => void
+  handleClearSavedProject: () => void
+  handleImportProject: (event: ChangeEvent<HTMLInputElement>) => void
+  setStatusMessage: (message: string) => void
+  statusMessage: string
+}
+
+function ProjectPanel({
+  project,
+  updateProjectMetadata,
+  importInputRef,
+  handleSaveProject,
+  handleLoadProject,
+  handleLoadDemo,
+  handleNewProject,
+  handleClearSavedProject,
+  handleImportProject,
+  setStatusMessage,
+  statusMessage,
+}: ProjectPanelProps) {
+  return (
+    <>
       <div className="mt-6 grid gap-4">
         <TextField
           id="project-title"
@@ -244,7 +318,7 @@ export function StudioSidebar({ statusMessage, setStatusMessage }: StudioSidebar
       <p className="mt-auto pt-6 text-xs leading-5 text-slate-500">
         Updated {new Date(project.updatedAt).toLocaleString()}
       </p>
-    </aside>
+    </>
   )
 }
 

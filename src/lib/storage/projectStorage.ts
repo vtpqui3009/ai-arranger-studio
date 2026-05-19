@@ -3,12 +3,14 @@ import {
   ARRANGEMENT_STYLES,
   INSTRUMENT_TYPES,
   NOTE_DURATION_OPTIONS,
+  PROJECT_SCHEMA_VERSION,
   SCALE_TYPES,
 } from '../../features/arranger/types/music'
 import { clampTempo, createId, midiToPitch } from '../../features/arranger/utils/musicTheory'
 import type { MixerState, TrackMixSettings } from '../../features/mixer/types/mixer'
 import { DEFAULT_MIXER_STATE, TRACK_TYPES } from '../../features/mixer/types/mixer'
-import type { ClipTrackEvent } from '../../features/soundLibrary/types/soundClip'
+import type { ClipTrackEvent, SoundClip, SoundClipSource } from '../../features/soundLibrary/types/soundClip'
+import { SOUND_CATEGORIES } from '../../features/soundLibrary/types/soundClip'
 
 const STORAGE_KEY = 'ai-arranger-studio.project.v1'
 
@@ -117,7 +119,10 @@ function parseProjectValue(value: unknown, options: ParseProjectOptions = {}): P
   const clips = Array.isArray(value.clips)
     ? parseEventArray(value.clips, parseClipTrackEvent, 'clip', options.strictEvents)
     : { events: [] }
-  const eventError = chords.error ?? melody.error ?? bass.error ?? drums.error ?? clips.error
+  const userClips = Array.isArray(value.userClips)
+    ? parseEventArray(value.userClips, parseSoundClip, 'user clip', options.strictEvents)
+    : { events: [] }
+  const eventError = chords.error ?? melody.error ?? bass.error ?? drums.error ?? clips.error ?? userClips.error
   if (eventError) {
     return { project: null, error: eventError }
   }
@@ -138,7 +143,9 @@ function parseProjectValue(value: unknown, options: ParseProjectOptions = {}): P
       bass: bass.events,
       drums: drums.events,
       clips: clips.events,
+      userClips: userClips.events,
       mixer: parseMixerState(value.mixer),
+      schemaVersion: typeof value.schemaVersion === 'number' ? value.schemaVersion : PROJECT_SCHEMA_VERSION,
       updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : new Date().toISOString(),
     },
   }
@@ -262,6 +269,39 @@ function parseClipTrackEvent(value: unknown): ClipTrackEvent | null {
     clipId: value.clipId,
     startBeat: value.startBeat,
     gain: Math.min(1, Math.max(0, value.gain)),
+    muted: typeof value.muted === 'boolean' ? value.muted : false,
+  }
+}
+
+const VALID_SOURCES: SoundClipSource[] = ['catalog-synth', 'ai-generated']
+
+function parseSoundClip(value: unknown): SoundClip | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.id !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.durationBeats !== 'number' ||
+    typeof value.referenceBpm !== 'number'
+  ) {
+    return null
+  }
+  const category = SOUND_CATEGORIES.find((c) => c === value.category)
+  if (!category) return null
+  const source = VALID_SOURCES.find((s) => s === value.source)
+  if (!source) return null
+  const style = ARRANGEMENT_STYLES.find((s) => s === value.style) ?? null
+  const tags = Array.isArray(value.tags) ? value.tags.filter((t): t is string => typeof t === 'string') : []
+
+  return {
+    id: value.id,
+    name: value.name,
+    category,
+    style,
+    tags,
+    durationBeats: value.durationBeats,
+    referenceBpm: value.referenceBpm,
+    source,
+    aliasSourceId: typeof value.aliasSourceId === 'string' ? value.aliasSourceId : undefined,
   }
 }
 
@@ -285,5 +325,6 @@ function parseTrackMixSettings(value: unknown): TrackMixSettings | null {
   return {
     volume: Math.min(100, Math.max(0, value.volume)),
     muted: value.muted,
+    solo: typeof value.solo === 'boolean' ? value.solo : false,
   }
 }

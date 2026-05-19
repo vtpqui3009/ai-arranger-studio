@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { cn } from '../../../components/ui/cn'
@@ -21,7 +21,11 @@ const gridTemplateColumns = `120px repeat(${PIANO_ROLL_STEPS}, minmax(24px, 1fr)
 
 export function ClipTrack() {
   const clips = useArrangerStore((state) => state.project.clips)
+  const userClips = useArrangerStore((state) => state.project.userClips)
   const removeClipFromProject = useArrangerStore((state) => state.removeClipFromProject)
+  const updateClipEvent = useArrangerStore((state) => state.updateClipEvent)
+
+  const lookupClip = (id: string) => getClipById(id) ?? userClips.find((clip) => clip.id === id)
 
   return (
     <Panel title="Clip track" eyebrow="Audio Clips">
@@ -69,29 +73,61 @@ export function ClipTrack() {
               </div>
             ) : (
               clips.map((event, index) => {
-                const clip = getClipById(event.clipId)
+                const clip = lookupClip(event.clipId)
                 const name = clip?.name ?? event.clipId
                 const durationBeats = clip?.durationBeats ?? BEATS_PER_BAR
                 const startStep = Math.round(event.startBeat / PIANO_ROLL_STEP_BEATS)
                 const durationSteps = Math.max(1, Math.round(durationBeats / PIANO_ROLL_STEP_BEATS))
+                const gainPercent = Math.round(event.gain * 100)
 
                 return (
-                  <div key={event.id} className="grid" style={{ gridTemplateColumns }}>
-                    <div className="flex h-12 items-center border-r border-studio-line pr-3 text-right text-xs text-slate-500">
-                      Clip {index + 1}
+                  <div key={event.id} className="grid items-center pb-3" style={{ gridTemplateColumns }}>
+                    <div className="flex h-16 flex-col justify-center border-r border-studio-line pr-3 text-right text-xs text-slate-500">
+                      <span>Clip {index + 1}</span>
+                      <div className="mt-1 flex items-center justify-end gap-1">
+                        <Button
+                          variant={event.muted ? 'danger' : 'ghost'}
+                          size="icon"
+                          aria-label={`${event.muted ? 'Unmute' : 'Mute'} clip ${index + 1}`}
+                          aria-pressed={event.muted}
+                          className="h-6 w-6"
+                          onClick={() => updateClipEvent(event.id, { muted: !event.muted })}
+                        >
+                          {event.muted ? (
+                            <VolumeX size={12} aria-hidden="true" />
+                          ) : (
+                            <Volume2 size={12} aria-hidden="true" />
+                          )}
+                        </Button>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={gainPercent}
+                          onChange={(e) => updateClipEvent(event.id, { gain: Number(e.target.value) / 100 })}
+                          className="h-1 w-16 cursor-pointer accent-studio-teal"
+                          aria-label={`Clip ${index + 1} gain`}
+                        />
+                        <span className="w-6 text-right tabular-nums text-studio-amber">{gainPercent}</span>
+                      </div>
                     </div>
                     {stepColumns.map((step) => (
                       <div
                         key={step}
                         className={cn(
-                          'h-12 border-b border-r border-studio-line/70',
+                          'h-16 border-b border-r border-studio-line/70',
                           step % stepsPerMeasure === 0 ? 'border-l border-l-studio-amber/40' : '',
                           step % 2 === 0 ? 'bg-slate-900/70' : 'bg-slate-950/50',
                         )}
                       />
                     ))}
                     <div
-                      className="z-10 flex h-8 min-w-0 items-center justify-between self-center rounded-md border border-studio-lilac/40 bg-studio-lilac/20 px-2 text-xs font-semibold text-studio-lilac"
+                      className={cn(
+                        'z-10 flex h-10 min-w-0 items-center justify-between self-center rounded-md border px-2 text-xs font-semibold',
+                        event.muted
+                          ? 'border-slate-600/40 bg-slate-600/20 text-slate-400'
+                          : 'border-studio-lilac/40 bg-studio-lilac/20 text-studio-lilac',
+                      )}
                       style={{ gridColumn: `${startStep + 2} / span ${durationSteps}`, gridRow: 1 }}
                     >
                       <span className="truncate">

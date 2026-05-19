@@ -16,6 +16,8 @@ import { PROJECT_BEATS, clampTempo, createId } from '../utils/musicTheory'
 import { createDemoProject, createEmptyProject, createNoteEvent } from '../utils/projectFactory'
 import type { AISuggestionResult } from '../../../lib/ai/arrangerClient'
 import type { TrackMixSettings, TrackType } from '../../mixer/types/mixer'
+import type { ClipTrackEvent, SoundClip } from '../../soundLibrary/types/soundClip'
+import { registerCacheAlias } from '../../../lib/audio/soundGenerator'
 
 const MAX_HISTORY_ITEMS = 8
 
@@ -46,6 +48,8 @@ type ArrangerStore = {
   toggleMelodyNote: (midi: number, startBeat: number) => void
   addClipToProject: (clipId: string, startBeat?: number) => void
   removeClipFromProject: (eventId: string) => void
+  updateClipEvent: (eventId: string, updates: Partial<Pick<ClipTrackEvent, 'gain' | 'muted'>>) => void
+  addUserClip: (clip: SoundClip) => void
   updateMixer: (track: TrackType, settings: Partial<TrackMixSettings>) => void
   loadProject: (project: MusicProject) => void
   loadDemoProject: () => void
@@ -135,6 +139,7 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
             clipId,
             startBeat,
             gain: 1,
+            muted: false,
           },
         ],
       }),
@@ -145,6 +150,22 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
       project: touchProject({
         ...project,
         clips: project.clips.filter((clip) => clip.id !== eventId),
+      }),
+    })),
+
+  updateClipEvent: (eventId, updates) =>
+    set(({ project }) => ({
+      project: touchProject({
+        ...project,
+        clips: project.clips.map((clip) => (clip.id === eventId ? { ...clip, ...updates } : clip)),
+      }),
+    })),
+
+  addUserClip: (clip) =>
+    set(({ project }) => ({
+      project: touchProject({
+        ...project,
+        userClips: [...project.userClips, clip],
       }),
     })),
 
@@ -159,13 +180,15 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
       }),
     })),
 
-  loadProject: (project) =>
+  loadProject: (project) => {
+    restoreUserClipAliases(project.userClips)
     set({
       project: touchProject(project),
       playback: { status: 'stopped', currentBeat: 0 },
       suggestionHistory: [],
       selectedSuggestionId: null,
-    }),
+    })
+  },
 
   loadDemoProject: () =>
     set({
@@ -242,6 +265,14 @@ function applySuggestionData(
 
 function touchProject(project: MusicProject): MusicProject {
   return { ...project, updatedAt: new Date().toISOString() }
+}
+
+function restoreUserClipAliases(userClips: SoundClip[]): void {
+  for (const clip of userClips) {
+    if (clip.aliasSourceId) {
+      registerCacheAlias(clip.id, clip.aliasSourceId)
+    }
+  }
 }
 
 function sortNotes(notes: NoteEvent[]): NoteEvent[] {
