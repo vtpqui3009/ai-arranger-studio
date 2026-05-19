@@ -1,8 +1,9 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { ErrorBoundary } from '../../../components/ErrorBoundary'
 import { StudioSidebar } from '../../../components/layout/StudioSidebar'
 import { Button } from '../../../components/ui/Button'
-import { ArrangementPlayer } from '../../../lib/audio/arrangementPlayer'
+import { playProject, stopPlayback } from '../../../lib/audio/arrangementPlayer'
 import { AIAssistantPanel } from './AIAssistantPanel'
 import { ChordTimeline } from './ChordTimeline'
 import { PianoRoll } from './PianoRoll'
@@ -17,15 +18,8 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
   const project = useArrangerStore((state) => state.project)
   const playbackStatus = useArrangerStore((state) => state.playback.status)
   const setPlaybackStatus = useArrangerStore((state) => state.setPlaybackStatus)
-  const [player] = useState(() => new ArrangementPlayer())
   const [statusMessage, setStatusMessage] = useState('Ready.')
   const [transportError, setTransportError] = useState('')
-
-  useEffect(() => {
-    return () => {
-      player.dispose()
-    }
-  }, [player])
 
   const handlePlay = async () => {
     setTransportError('')
@@ -33,9 +27,11 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
     setPlaybackStatus('loading')
 
     try {
-      await player.play(project, () => {
-        setPlaybackStatus('stopped')
-        setStatusMessage('Playback finished.')
+      await playProject(project, {
+        onEnded: () => {
+          setPlaybackStatus('stopped')
+          setStatusMessage('Playback finished.')
+        },
       })
       setPlaybackStatus('playing')
       setStatusMessage('Playing arrangement.')
@@ -47,7 +43,7 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
   }
 
   const handleStop = () => {
-    player.stop()
+    stopPlayback()
     setPlaybackStatus('stopped')
     setStatusMessage('Playback stopped.')
   }
@@ -84,7 +80,9 @@ export function WorkspacePage({ onBackToLanding }: WorkspacePageProps) {
               <ChordTimeline />
               <PianoRoll />
             </div>
-            <AIAssistantPanel />
+            <ErrorBoundary>
+              <AIAssistantPanel />
+            </ErrorBoundary>
           </div>
         </section>
       </div>

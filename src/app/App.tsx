@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LandingPage } from '../components/layout/LandingPage'
 import { WorkspacePage } from '../features/arranger/components/WorkspacePage'
 import { loadProject } from '../lib/storage/projectStorage'
@@ -14,7 +15,11 @@ export default function App() {
   }
 
   if (route === ROUTES.studio) {
-    return <WorkspacePage onBackToLanding={navigateToLanding} />
+    return (
+      <ErrorBoundary>
+        <WorkspacePage onBackToLanding={navigateToLanding} />
+      </ErrorBoundary>
+    )
   }
 
   return (

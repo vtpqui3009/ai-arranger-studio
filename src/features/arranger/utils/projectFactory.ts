@@ -59,6 +59,8 @@ export function createDemoProject(): MusicProject {
     selectedNoteDurationBeats: 1,
     chords: createChordGrid(DEFAULT_CHORDS),
     melody: DEMO_MELODY.map((note) => createNoteEvent(note.midi, note.startBeat, note.durationBeats)),
+    bass: [],
+    drums: [],
     updatedAt: new Date().toISOString(),
   }
 }
@@ -75,6 +77,8 @@ export function createEmptyProject(): MusicProject {
     selectedNoteDurationBeats: 1,
     chords: createChordGrid(['C', 'G', 'Am', 'F']),
     melody: [],
+    bass: [],
+    drums: [],
     updatedAt: new Date().toISOString(),
   }
 }

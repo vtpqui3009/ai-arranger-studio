@@ -34,14 +34,6 @@ export type DrumEvent = {
   velocity: number
 }
 
-export type Track = {
-  id: string
-  name: string
-  instrument: InstrumentType
-  notes: NoteEvent[]
-  muted: boolean
-}
-
 export type MusicProject = {
   id: string
   title: string
@@ -53,6 +45,8 @@ export type MusicProject = {
   selectedNoteDurationBeats: NoteDurationBeats
   chords: ChordEvent[]
   melody: NoteEvent[]
+  bass: NoteEvent[]
+  drums: DrumEvent[]
   updatedAt: string
 }
 
