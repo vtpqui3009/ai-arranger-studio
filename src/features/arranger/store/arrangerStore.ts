@@ -144,8 +144,7 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
       selectedSuggestionId: null,
     }),
 
-  setPlaybackStatus: (status, currentBeat = 0) =>
-    set({ playback: { status, currentBeat } }),
+  setPlaybackStatus: (status, currentBeat = 0) => set({ playback: { status, currentBeat } }),
 
   addSuggestion: (result) => {
     const item: SuggestionHistoryItem = {

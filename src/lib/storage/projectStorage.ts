@@ -14,10 +14,9 @@ export function saveProject(project: MusicProject): void {
     getLocalStorage().setItem(STORAGE_KEY, JSON.stringify(project))
   } catch (error) {
     // QuotaExceededError or private-mode browsers can throw here.
-    throw new Error(
-      `Unable to save project: ${error instanceof Error ? error.message : 'storage unavailable'}`,
-      { cause: error },
-    )
+    throw new Error(`Unable to save project: ${error instanceof Error ? error.message : 'storage unavailable'}`, {
+      cause: error,
+    })
   }
 }
 

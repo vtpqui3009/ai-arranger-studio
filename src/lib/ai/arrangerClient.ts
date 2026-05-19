@@ -28,12 +28,12 @@ type BackendSuggestionResponse = {
   warning?: string | null
 }
 
-export async function requestChordSuggestion(
-  project: MusicProject,
-  signal?: AbortSignal,
-): Promise<AISuggestionResult> {
-  return requestSuggestion('/api/ai/suggest-chords', project, () =>
-    suggestChordProgression(project.key, project.scale, project.style), signal,
+export async function requestChordSuggestion(project: MusicProject, signal?: AbortSignal): Promise<AISuggestionResult> {
+  return requestSuggestion(
+    '/api/ai/suggest-chords',
+    project,
+    () => suggestChordProgression(project.key, project.scale, project.style),
+    signal,
   )
 }
 
@@ -44,17 +44,11 @@ export async function requestMelodySuggestion(
   return requestSuggestion('/api/ai/suggest-melody', project, () => suggestMelodyVariation(project), signal)
 }
 
-export async function requestBassSuggestion(
-  project: MusicProject,
-  signal?: AbortSignal,
-): Promise<AISuggestionResult> {
+export async function requestBassSuggestion(project: MusicProject, signal?: AbortSignal): Promise<AISuggestionResult> {
   return requestSuggestion('/api/ai/suggest-bass', project, () => suggestBassLine(project), signal)
 }
 
-export async function requestDrumSuggestion(
-  project: MusicProject,
-  signal?: AbortSignal,
-): Promise<AISuggestionResult> {
+export async function requestDrumSuggestion(project: MusicProject, signal?: AbortSignal): Promise<AISuggestionResult> {
   return requestSuggestion('/api/ai/suggest-drums', project, () => suggestDrumGroove(project.style), signal)
 }
 
