@@ -1,4 +1,5 @@
 import type { ChordEvent, MusicProject, NoteDurationBeats, NoteEvent } from '../types/music'
+import { DEFAULT_MIXER_STATE } from '../../mixer/types/mixer'
 import { BEATS_PER_BAR, DEFAULT_NOTE_DURATION_BEATS, PROJECT_BEATS, createId, midiToPitch } from './musicTheory'
 
 const DEFAULT_CHORDS = ['Cmaj7', 'Am7', 'Fmaj7', 'G7'] as const
@@ -61,6 +62,8 @@ export function createDemoProject(): MusicProject {
     melody: DEMO_MELODY.map((note) => createNoteEvent(note.midi, note.startBeat, note.durationBeats)),
     bass: [],
     drums: [],
+    clips: [],
+    mixer: DEFAULT_MIXER_STATE,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -79,6 +82,8 @@ export function createEmptyProject(): MusicProject {
     melody: [],
     bass: [],
     drums: [],
+    clips: [],
+    mixer: DEFAULT_MIXER_STATE,
     updatedAt: new Date().toISOString(),
   }
 }

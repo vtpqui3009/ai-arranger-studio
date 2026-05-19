@@ -1,11 +1,14 @@
 import * as Tone from 'tone'
 import type { DrumVoice, InstrumentType, MusicProject } from '../../features/arranger/types/music'
+import type { MixerState } from '../../features/mixer/types/mixer'
 import {
   BEATS_PER_BAR,
   PROJECT_BEATS,
   chordSymbolToVoicedMidiNotes,
   midiToPitch,
 } from '../../features/arranger/utils/musicTheory'
+import { stopPreview } from './clipPreviewPlayer'
+import { getAudioBuffer } from './soundGenerator'
 
 const START_DELAY_SECONDS = 0.06
 const DEFAULT_LOOP_BEATS = PROJECT_BEATS
@@ -25,11 +28,18 @@ export class ArrangementPlayer {
   private drumKit: DrumKit | null = null
   private melodyInstrument: InstrumentType | null = null
   private scheduledEventIds: number[] = []
+  private clipSources: AudioBufferSourceNode[] = []
+  private chordGain: Tone.Gain | null = null
+  private melodyGain: Tone.Gain | null = null
+  private bassGain: Tone.Gain | null = null
+  private drumGain: Tone.Gain | null = null
 
   async play(project: MusicProject, onEnded: () => void): Promise<void> {
+    stopPreview()
     await Tone.start()
     this.stop()
     this.ensureSynths(project.instrument)
+    this.applyMixer(project.mixer)
 
     const transport = Tone.getTransport()
     transport.bpm.value = project.tempo
@@ -48,10 +58,20 @@ export class ArrangementPlayer {
       ),
     )
 
+    await this.scheduleClips(project, START_DELAY_SECONDS)
     transport.start(`+${START_DELAY_SECONDS}`)
   }
 
   stop(): void {
+    this.clipSources.forEach((source) => {
+      try {
+        source.stop()
+      } catch {
+        // Source may already have ended.
+      }
+    })
+    this.clipSources = []
+
     const transport = Tone.getTransport()
     transport.stop()
     transport.position = 0
@@ -68,25 +88,47 @@ export class ArrangementPlayer {
     this.drumKit?.snare.dispose()
     this.drumKit?.closedHat.dispose()
     this.drumKit?.openHat.dispose()
+    this.chordGain?.dispose()
+    this.melodyGain?.dispose()
+    this.bassGain?.dispose()
+    this.drumGain?.dispose()
     this.chordSynth = null
     this.melodySynth = null
     this.bassSynth = null
     this.drumKit = null
     this.melodyInstrument = null
+    this.chordGain = null
+    this.melodyGain = null
+    this.bassGain = null
+    this.drumGain = null
+    this.clipSources = []
   }
 
   private ensureSynths(instrument: InstrumentType): void {
+    if (!this.chordGain) {
+      this.chordGain = new Tone.Gain(1).toDestination()
+    }
+    if (!this.melodyGain) {
+      this.melodyGain = new Tone.Gain(1).toDestination()
+    }
+    if (!this.bassGain) {
+      this.bassGain = new Tone.Gain(1).toDestination()
+    }
+    if (!this.drumGain) {
+      this.drumGain = new Tone.Gain(1).toDestination()
+    }
+
     if (!this.chordSynth) {
       this.chordSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.035, decay: 0.22, sustain: 0.5, release: 1.35 },
-      }).toDestination()
+      }).connect(this.chordGain)
       this.chordSynth.volume.value = -14
     }
 
     if (!this.melodySynth || this.melodyInstrument !== instrument) {
       this.melodySynth?.dispose()
-      this.melodySynth = createMelodySynth(instrument)
+      this.melodySynth = createMelodySynth(instrument, this.melodyGain)
       this.melodyInstrument = instrument
     }
 
@@ -103,12 +145,27 @@ export class ArrangementPlayer {
           baseFrequency: 90,
           octaves: 2.6,
         },
-      }).toDestination()
+      }).connect(this.bassGain)
       this.bassSynth.volume.value = -10
     }
 
     if (!this.drumKit) {
-      this.drumKit = createDrumKit()
+      this.drumKit = createDrumKit(this.drumGain)
+    }
+  }
+
+  private applyMixer(mixer: MixerState): void {
+    if (this.chordGain) {
+      this.chordGain.gain.value = mixer.chords.muted ? 0 : mixer.chords.volume / 100
+    }
+    if (this.melodyGain) {
+      this.melodyGain.gain.value = mixer.melody.muted ? 0 : mixer.melody.volume / 100
+    }
+    if (this.bassGain) {
+      this.bassGain.gain.value = mixer.bass.muted ? 0 : mixer.bass.volume / 100
+    }
+    if (this.drumGain) {
+      this.drumGain.gain.value = mixer.drums.muted ? 0 : mixer.drums.volume / 100
     }
   }
 
@@ -172,9 +229,35 @@ export class ArrangementPlayer {
       this.scheduledEventIds.push(eventId)
     })
   }
+
+  private async scheduleClips(project: MusicProject, startOffset: number): Promise<void> {
+    if (project.clips.length === 0) return
+
+    const ctx = Tone.getContext().rawContext as AudioContext
+    const clipMix = project.mixer.clips
+    const masterGain = clipMix.muted ? 0 : clipMix.volume / 100
+
+    for (const event of project.clips) {
+      try {
+        const buffer = await getAudioBuffer(event.clipId)
+        const gainNode = ctx.createGain()
+        gainNode.gain.value = event.gain * masterGain
+        gainNode.connect(ctx.destination)
+
+        const source = ctx.createBufferSource()
+        source.buffer = buffer
+        source.connect(gainNode)
+        const startTime = ctx.currentTime + startOffset + beatsToSeconds(event.startBeat, project.tempo)
+        source.start(startTime)
+        this.clipSources.push(source)
+      } catch {
+        // A bad clip should never block arrangement playback.
+      }
+    }
+  }
 }
 
-function createMelodySynth(instrument: InstrumentType): Tone.Synth | Tone.FMSynth | Tone.MonoSynth {
+function createMelodySynth(instrument: InstrumentType, output: Tone.Gain): Tone.Synth | Tone.FMSynth | Tone.MonoSynth {
   if (instrument === 'piano') {
     const synth = new Tone.FMSynth({
       harmonicity: 1.35,
@@ -191,7 +274,7 @@ function createMelodySynth(instrument: InstrumentType): Tone.Synth | Tone.FMSynt
         sustain: 0.02,
         release: 0.25,
       },
-    }).toDestination()
+    }).connect(output)
     synth.volume.value = -9
     return synth
   }
@@ -220,7 +303,7 @@ function createMelodySynth(instrument: InstrumentType): Tone.Synth | Tone.FMSynt
         baseFrequency: 90,
         octaves: 2.6,
       },
-    }).toDestination()
+    }).connect(output)
     synth.volume.value = -10
     return synth
   }
@@ -236,7 +319,7 @@ function createMelodySynth(instrument: InstrumentType): Tone.Synth | Tone.FMSynt
         sustain: 0.75,
         release: 1.2,
       },
-    }).toDestination()
+    }).connect(output)
     synth.volume.value = -12
     return synth
   }
@@ -251,23 +334,23 @@ function createMelodySynth(instrument: InstrumentType): Tone.Synth | Tone.FMSynt
       sustain: 0.35,
       release: 0.45,
     },
-  }).toDestination()
+  }).connect(output)
   synth.volume.value = -8
   return synth
 }
 
-function createDrumKit(): DrumKit {
+function createDrumKit(output: Tone.Gain): DrumKit {
   const kick = new Tone.MembraneSynth({
     pitchDecay: 0.055,
     octaves: 6,
     envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
-  }).toDestination()
+  }).connect(output)
   kick.volume.value = -6
 
   const snare = new Tone.NoiseSynth({
     noise: { type: 'white' },
     envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.05 },
-  }).toDestination()
+  }).connect(output)
   snare.volume.value = -10
 
   const closedHat = new Tone.MetalSynth({
@@ -276,7 +359,7 @@ function createDrumKit(): DrumKit {
     modulationIndex: 32,
     resonance: 4000,
     octaves: 1.5,
-  }).toDestination()
+  }).connect(output)
   closedHat.frequency.value = 400
   closedHat.volume.value = -18
 
@@ -286,7 +369,7 @@ function createDrumKit(): DrumKit {
     modulationIndex: 32,
     resonance: 4000,
     octaves: 1.5,
-  }).toDestination()
+  }).connect(output)
   openHat.frequency.value = 400
   openHat.volume.value = -20
 

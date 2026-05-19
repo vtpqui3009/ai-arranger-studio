@@ -15,6 +15,7 @@ import type {
 import { PROJECT_BEATS, clampTempo, createId } from '../utils/musicTheory'
 import { createDemoProject, createEmptyProject, createNoteEvent } from '../utils/projectFactory'
 import type { AISuggestionResult } from '../../../lib/ai/arrangerClient'
+import type { TrackMixSettings, TrackType } from '../../mixer/types/mixer'
 
 const MAX_HISTORY_ITEMS = 8
 
@@ -43,6 +44,9 @@ type ArrangerStore = {
   replaceBass: (notes: NoteEvent[]) => void
   replaceDrums: (pattern: DrumEvent[]) => void
   toggleMelodyNote: (midi: number, startBeat: number) => void
+  addClipToProject: (clipId: string, startBeat?: number) => void
+  removeClipFromProject: (eventId: string) => void
+  updateMixer: (track: TrackType, settings: Partial<TrackMixSettings>) => void
   loadProject: (project: MusicProject) => void
   loadDemoProject: () => void
   createNewProject: () => void
@@ -119,6 +123,41 @@ export const useArrangerStore = create<ArrangerStore>((set, get) => ({
 
       return { project: touchProject({ ...project, melody: sortNotes(melody) }) }
     }),
+
+  addClipToProject: (clipId, startBeat = 0) =>
+    set(({ project }) => ({
+      project: touchProject({
+        ...project,
+        clips: [
+          ...project.clips,
+          {
+            id: createId('clip'),
+            clipId,
+            startBeat,
+            gain: 1,
+          },
+        ],
+      }),
+    })),
+
+  removeClipFromProject: (eventId) =>
+    set(({ project }) => ({
+      project: touchProject({
+        ...project,
+        clips: project.clips.filter((clip) => clip.id !== eventId),
+      }),
+    })),
+
+  updateMixer: (track, settings) =>
+    set(({ project }) => ({
+      project: touchProject({
+        ...project,
+        mixer: {
+          ...project.mixer,
+          [track]: { ...project.mixer[track], ...settings },
+        },
+      }),
+    })),
 
   loadProject: (project) =>
     set({
