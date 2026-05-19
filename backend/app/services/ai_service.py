@@ -25,8 +25,9 @@ SuggestionModel = TypeVar("SuggestionModel", bound=BaseModel)
 
 SYSTEM_PROMPT = """You are AI Arranger Studio's backend arranger.
 Return exactly one compact, structured music suggestion matching the requested schema.
-Keep all events inside the project loop, use generated MIDI-style data only, and avoid copyrighted samples.
-Fit the project's key, scale, style, tempo, chords, melody, bass, and drums.
+Keep all events within a 16-beat loop unless the project itself is longer.
+Use only generated MIDI-style data, never copyrighted samples.
+Prefer beginner-friendly musical ideas that fit the project's key, scale, style, tempo, chords, melody, bass, and drums.
 """
 
 
