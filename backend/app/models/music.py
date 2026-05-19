@@ -47,6 +47,8 @@ class MusicProject(BaseModel):
     selectedNoteDurationBeats: NoteDurationBeats = 1
     chords: list[ChordEvent] = Field(default_factory=list, max_length=32)
     melody: list[NoteEvent] = Field(default_factory=list, max_length=256)
+    bass: list[NoteEvent] = Field(default_factory=list, max_length=256)
+    drums: list[DrumEvent] = Field(default_factory=list, max_length=256)
     updatedAt: str
 
 
