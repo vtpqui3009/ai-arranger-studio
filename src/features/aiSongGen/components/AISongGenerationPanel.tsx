@@ -21,7 +21,7 @@ export function AISongGenerationPanel() {
   const isPending = requests.some((request) => request.status === 'pending')
 
   return (
-    <Panel title="AI Song Generator" eyebrow="Demo ΓÇö No Real AI">
+    <Panel title="AI Song Generator" eyebrow="Demo — No Real AI">
       <div className="grid gap-4 p-4">
         <p className="text-xs leading-5 text-slate-500">
           This is a demo mock generator. It creates synthesized placeholder clips locally with no AI model call.
@@ -31,7 +31,7 @@ export function AISongGenerationPanel() {
           rows={3}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          placeholder="Describe your sound idea ΓÇö style, mood, energy..."
+          placeholder="Describe your sound idea — style, mood, energy..."
           className="w-full resize-none rounded-lg border border-studio-line bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-studio-teal focus:ring-2 focus:ring-studio-teal/20"
         />
 

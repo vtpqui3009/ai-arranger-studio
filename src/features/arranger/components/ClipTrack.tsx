@@ -64,7 +64,7 @@ export function ClipTrack() {
                   className="flex h-12 items-center border-b border-r border-studio-line/70 bg-slate-950/50 px-3 text-xs italic text-slate-500"
                   style={{ gridColumn: '2 / -1' }}
                 >
-                  No clips added ΓÇö open the Sound Library to browse {SOUND_CATALOG.length} demo sounds
+                  No clips added — open the Sound Library to browse {SOUND_CATALOG.length} demo sounds
                 </div>
               </div>
             ) : (
@@ -95,7 +95,7 @@ export function ClipTrack() {
                       style={{ gridColumn: `${startStep + 2} / span ${durationSteps}`, gridRow: 1 }}
                     >
                       <span className="truncate">
-                        {name} ┬╖ {formatMeasureBeat(event.startBeat)}
+                        {name} · {formatMeasureBeat(event.startBeat)}
                       </span>
                       <Button
                         variant="ghost"

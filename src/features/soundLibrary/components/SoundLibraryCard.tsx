@@ -42,7 +42,7 @@ export function SoundLibraryCard({ clip, isAdded, onAdd }: SoundLibraryCardProps
 
       <h3 className="min-w-0 truncate text-sm font-semibold text-slate-100">
         {clip.name}
-        {clip.source === 'ai-generated' && <span className="ml-2 text-xs text-studio-lilac">Γ£ª Demo AI</span>}
+        {clip.source === 'ai-generated' && <span className="ml-2 text-xs text-studio-lilac">★ Demo AI</span>}
       </h3>
 
       <div className="flex flex-wrap gap-1.5">

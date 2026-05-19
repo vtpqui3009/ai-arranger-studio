@@ -24,7 +24,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
       </Pill>
       {SOUND_CATEGORIES.map((category) => (
         <Pill key={category} isActive={selected === category} onClick={() => onChange(category)}>
-          <span className={cn('text-lg leading-none', accentClasses[category])}>ΓÇó</span>
+          <span className={cn('text-lg leading-none', accentClasses[category])}>●</span>
           {labelFor(category)}
         </Pill>
       ))}

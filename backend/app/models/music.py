@@ -9,7 +9,29 @@ ScaleType = Literal["major", "minor"]
 InstrumentType = Literal["synth", "piano", "bass", "pad"]
 NoteDurationBeats = Literal[0.5, 1, 2, 4]
 DrumVoice = Literal["kick", "snare", "closedHat", "openHat"]
+TrackType = Literal["chords", "melody", "bass", "drums", "clips"]
 AISource = Literal["openai", "mock"]
+
+
+class TrackMixSettings(BaseModel):
+    volume: float = Field(ge=0, le=100)
+    muted: bool = False
+
+
+_DEFAULT_MIXER: dict[str, TrackMixSettings] = {
+    "chords": TrackMixSettings(volume=75),
+    "melody": TrackMixSettings(volume=80),
+    "bass": TrackMixSettings(volume=85),
+    "drums": TrackMixSettings(volume=80),
+    "clips": TrackMixSettings(volume=80),
+}
+
+
+class ClipTrackEvent(BaseModel):
+    id: str = Field(min_length=1)
+    clipId: str = Field(min_length=1)
+    startBeat: float = Field(ge=0, le=64)
+    gain: float = Field(ge=0, le=1)
 
 
 class NoteEvent(BaseModel):
@@ -49,6 +71,8 @@ class MusicProject(BaseModel):
     melody: list[NoteEvent] = Field(default_factory=list, max_length=256)
     bass: list[NoteEvent] = Field(default_factory=list, max_length=256)
     drums: list[DrumEvent] = Field(default_factory=list, max_length=256)
+    clips: list[ClipTrackEvent] = Field(default_factory=list, max_length=64)
+    mixer: dict[TrackType, TrackMixSettings] = Field(default_factory=lambda: dict(_DEFAULT_MIXER))
     updatedAt: str
 
 
